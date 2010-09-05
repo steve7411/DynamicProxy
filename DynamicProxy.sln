@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DynamicProxy", "DynamicProxy\DynamicProxy.csproj", "{E38ED3B1-B074-4473-BCA6-194AD6DF5C88}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F7EE14E2-4DA0-44DD-B0F5-AFB454B88CB8}"
+	ProjectSection(SolutionItems) = preProject
+		DynamicProxy.vsmdi = DynamicProxy.vsmdi
+		Local.testsettings = Local.testsettings
+		TraceAndTestImpact.testsettings = TraceAndTestImpact.testsettings
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DynamicProxy.Tests", "DynamicProxy.Tests\DynamicProxy.Tests.csproj", "{3ACEDAC7-0D53-467E-A7A8-AD5BB0D9E58A}"
+EndProject
+Global
+	GlobalSection(TestCaseManagementSettings) = postSolution
+		CategoryFile = DynamicProxy.vsmdi
+	EndGlobalSection
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E38ED3B1-B074-4473-BCA6-194AD6DF5C88}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E38ED3B1-B074-4473-BCA6-194AD6DF5C88}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E38ED3B1-B074-4473-BCA6-194AD6DF5C88}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E38ED3B1-B074-4473-BCA6-194AD6DF5C88}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3ACEDAC7-0D53-467E-A7A8-AD5BB0D9E58A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3ACEDAC7-0D53-467E-A7A8-AD5BB0D9E58A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3ACEDAC7-0D53-467E-A7A8-AD5BB0D9E58A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3ACEDAC7-0D53-467E-A7A8-AD5BB0D9E58A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
