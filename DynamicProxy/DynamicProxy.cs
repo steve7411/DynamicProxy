@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Dynamic;
 using System.Linq;
@@ -124,9 +125,44 @@ namespace DynamicProxy
 
             public override DynamicMetaObject BindConvert(ConvertBinder binder)
             {
-                if (!binder.Type.IsAssignableFrom(_proxy._instanceType))
-                    throw new RuntimeBinderException(String.Format("Cannot convert type {0} to {1}.", _proxy._instanceType.FullName, binder.Type.FullName));
-                return new DynamicMetaObject(Expression.Constant(_proxy._instance), BindingRestrictions.GetTypeRestriction(Expression, LimitType));
+                if (binder.Type.IsAssignableFrom(_proxy._instanceType))
+                    return new DynamicMetaObject(Expression.Constant(_proxy._instance), BindingRestrictions.GetTypeRestriction(Expression, LimitType));
+                if (FullfillsInterface(binder.Type))
+                {
+                    return new DynamicMetaObject(Expression.Constant(DynamicInterface.CreateDynamicInterface(binder.Type, _proxy._instance)), BindingRestrictions.GetTypeRestriction(Expression, LimitType));
+                }
+                
+                throw new RuntimeBinderException(String.Format("Cannot convert type {0} to {1}.", _proxy._instanceType.FullName, binder.Type.FullName));
+            }
+
+            private bool FullfillsInterface(Type interfaceType)
+            {
+                if (!interfaceType.IsInterface)
+                {
+                    return false;
+                }
+
+                return FullfillsInterfaceMethodDefinitions(interfaceType)
+                       && FullfillsInterfacePropertyAndIndexerDefinitions(interfaceType);
+            }
+
+            private bool FullfillsInterfacePropertyAndIndexerDefinitions(Type interfaceType)
+            {
+                var interfacePropertyAccessors = interfaceType.GetProperties().SelectMany(p => p.GetAccessors()).Select(m => m.GetMethodNameWithTypes());
+                var instancePropertyAccessors = _proxy._instanceType.GetProperties().SelectMany(p => p.GetAccessors()).Select(m => m.GetMethodNameWithTypes());
+
+                var propertyIntersection = interfacePropertyAccessors.Intersect(instancePropertyAccessors);
+
+                return propertyIntersection.Count() == interfacePropertyAccessors.Count();
+            }
+
+            private bool FullfillsInterfaceMethodDefinitions(Type interfaceType)
+            {
+                var interfaceMethods = interfaceType.GetMethods().Where(m => !m.IsSpecialName).Select(m => m.GetMethodNameWithTypes());
+                var instanceMethods = _proxy._instanceType.GetMethods().Where(m => !m.IsSpecialName).Select(m => m.GetMethodNameWithTypes());
+                var methodIntersect = interfaceMethods.Intersect(instanceMethods);
+
+                return interfaceMethods.Count() == methodIntersect.Count();
             }
         }
 

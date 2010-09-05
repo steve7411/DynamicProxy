@@ -17,6 +17,8 @@ namespace DynamicProxy.Tests
         string GetStringValue(object input, int anotherInput);
 
         int GetInt(int input);
+
+        void Statement();
     }
 
     public interface IDummyEvents
@@ -55,6 +57,11 @@ namespace DynamicProxy.Tests
         public string GetStringValue(object input, int anotherInput)
         {
             return input + " - " + anotherInput;
+        }
+
+        public void Statement()
+        {
+            return;
         }
 
         public int GetInt(int input)
@@ -103,29 +110,4 @@ namespace DynamicProxy.Tests
             }
         }
     }
-
-    //class Spike : DynamicInterfaceBase
-    //{
-    //    string WritableProperty
-    //    {
-    //        get
-    //        {
-    //            return _instance.WritableProperty;
-    //        }
-    //        set
-    //        {
-    //            _instance.WritableProperty = value;
-    //        }
-    //    }
-
-    //    string ReadOnlyProperty
-    //    {
-    //        get
-    //        {
-    //            return _instance.ReadOnlyProperty;
-    //        }
-    //    }
-
-    //    public Spike(object instance) : base((global::DynamicProxy.IDummy) instance) { }
-    //}
 }

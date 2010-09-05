@@ -7,7 +7,7 @@ using System.Threading;
 
 namespace DynamicProxy
 {
-    public static class DynamicInterface
+    static class DynamicInterface
     {
         private const MethodAttributes PropertyAccessorMethodAttributes = MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.NewSlot | MethodAttributes.Virtual | MethodAttributes.Final;
         private static AssemblyBuilder _asmBuilder;
@@ -50,10 +50,10 @@ namespace DynamicProxy
             return typeBuilder;
         }
 
-        private static void BuildConstructor(TypeBuilder typeBuilder, Dictionary<string, FieldBuilder> dynamicProperties, Dictionary<string, FieldBuilder> dynamicMethods, FieldBuilder dynamicIndexField = null)
+        private static void BuildConstructor(TypeBuilder typeBuilder, Dictionary<MemberInfo, FieldBuilder> dynamicMembers, FieldBuilder dynamicIndexField = null)
         {
-            const MethodAttributes methodAttributes = MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName;
-            ConstructorBuilder constructor = typeBuilder.DefineConstructor(methodAttributes, CallingConventions.Standard, typeof(object).ToArrayItem<Type>());
+            const MethodAttributes constructorAttributes = MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName;
+            ConstructorBuilder constructor = typeBuilder.DefineConstructor(constructorAttributes, CallingConventions.Standard, typeof(object).ToArrayItem<Type>());
 
             MethodInfo objectGetType = typeof(object).GetMethod("GetType", BindingFlags.Instance | BindingFlags.Public, null, Type.EmptyTypes, null);
 
@@ -71,13 +71,26 @@ namespace DynamicProxy
             gen.Emit(OpCodes.Callvirt, objectGetType);
             gen.Emit(OpCodes.Stloc_0);
 
-            InitializeDynamicProperties(gen, dynamicProperties, OpCodes.Ldloc_0);
-
-            InitializeDynamicMethods(gen, dynamicMethods, OpCodes.Ldloc_0);
+            InItializeDynamicMembers(gen, dynamicMembers, OpCodes.Ldloc_0);
 
             InitializeDynamicIndex(gen, dynamicIndexField);
 
             gen.Emit(OpCodes.Ret);
+        }
+        
+        private static void InItializeDynamicMembers(ILGenerator gen, Dictionary<MemberInfo, FieldBuilder> dynamicMembers, OpCode loadInstanceTypeOpCode)
+        {
+            foreach (var kvp in dynamicMembers)
+            {
+                if (kvp.Key is MethodInfo)
+                {
+                    InitializeDynamicMethod(gen, kvp, loadInstanceTypeOpCode);
+                }
+                else
+                {
+                    InitializeDynamicProperty(gen, kvp, loadInstanceTypeOpCode);
+                }
+            }
         }
 
         private static void InitializeDynamicIndex(ILGenerator gen, FieldBuilder dynamicIndexField)
@@ -94,34 +107,31 @@ namespace DynamicProxy
         }
 
 
-        private static void InitializeDynamicMethods(ILGenerator gen, Dictionary<string, FieldBuilder> dynamicMethods, OpCode loadInstanceTypeOpCode)
+        private static void InitializeDynamicMethod(ILGenerator gen, KeyValuePair<MemberInfo, FieldBuilder> dynamicMethod, OpCode loadInstanceTypeOpCode)
         {
             ConstructorInfo dynamicMethodCtor = typeof(DynamicMethod).GetConstructor(BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(MethodInfo), typeof(object) }, null);
             MethodInfo typeGetMethod = typeof(Type).GetMethod("GetMethod", BindingFlags.Instance | BindingFlags.Public, null, typeof(string).ToArrayItem<Type>(), null);
 
-            InitializeFields(dynamicMethods, gen, typeGetMethod, dynamicMethodCtor, loadInstanceTypeOpCode);
+            InitializeField(dynamicMethod, gen, typeGetMethod, dynamicMethodCtor, loadInstanceTypeOpCode);
         }
 
-        private static void InitializeDynamicProperties(ILGenerator gen, Dictionary<string, FieldBuilder> dynamicProperties, OpCode loadInstanceTypeOpCode)
+        private static void InitializeDynamicProperty(ILGenerator gen, KeyValuePair<MemberInfo, FieldBuilder> dynamicProperty, OpCode loadInstanceTypeOpCode)
         {
             MethodInfo typeGetProperty = typeof(Type).GetMethod("GetProperty", BindingFlags.Instance | BindingFlags.Public, null, typeof(string).ToArrayItem<Type>(), null);
             ConstructorInfo dynamicPropertyCtor = typeof(DynamicProperty).GetConstructor(BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(PropertyInfo), typeof(object) }, null);
 
-            InitializeFields(dynamicProperties, gen, typeGetProperty, dynamicPropertyCtor, loadInstanceTypeOpCode);
+            InitializeField(dynamicProperty, gen, typeGetProperty, dynamicPropertyCtor, loadInstanceTypeOpCode);
         }
 
-        private static void InitializeFields(Dictionary<string, FieldBuilder> dynamicAccessors, ILGenerator gen, MethodInfo typeGetMemberMethod, ConstructorInfo dynamicAccessorCtor, OpCode loadInstanceTypeOpCode)
+        private static void InitializeField(KeyValuePair<MemberInfo, FieldBuilder> dynamicAccessor, ILGenerator gen, MethodInfo typeGetMemberMethod, ConstructorInfo dynamicAccessorCtor, OpCode loadInstanceTypeOpCode)
         {
-            foreach (var propertyName in dynamicAccessors.Keys)
-            {
                 gen.Emit(OpCodes.Ldarg_0);
                 gen.Emit(loadInstanceTypeOpCode);
-                gen.Emit(OpCodes.Ldstr, propertyName);
+                gen.Emit(OpCodes.Ldstr, dynamicAccessor.Key.Name);
                 gen.Emit(OpCodes.Callvirt, typeGetMemberMethod);
                 gen.Emit(OpCodes.Ldarg_1);
                 gen.Emit(OpCodes.Newobj, dynamicAccessorCtor);
-                gen.Emit(OpCodes.Stfld, dynamicAccessors[propertyName]);
-            }
+                gen.Emit(OpCodes.Stfld, dynamicAccessor.Value);
         }
 
         private static FieldBuilder BuildPrivateReadonlyField(TypeBuilder typeBuilder, string name, Type fieldType)
@@ -176,7 +186,7 @@ namespace DynamicProxy
             method.DefineParameter(indexParameters.Length + 1, ParameterAttributes.None, "value");
 
             ILGenerator gen = method.GetILGenerator();
-            
+
             EmitPopulateObjectArrayArgumentAndCallMethod(propertyInfo.PropertyType, indexParameters, gen, dynamicIndexField, dynamicIndexSet, true);
 
             return method;
@@ -230,9 +240,11 @@ namespace DynamicProxy
             else
             {
                 ilGenerator.Emit(OpCodes.Callvirt, dynamicAccessorMethod);
-                ilGenerator.Emit(OpCodes.Castclass, returnType);
+                //ilGenerator.Emit(OpCodes.Castclass, returnType);
 
-                if (returnType.IsValueType)
+                if(returnType == typeof(void))
+                    ilGenerator.Emit(OpCodes.Pop);
+                else if (returnType.IsValueType)
                     ilGenerator.Emit(OpCodes.Unbox_Any, returnType);
             }
             ilGenerator.Emit(OpCodes.Ret);
@@ -335,19 +347,20 @@ namespace DynamicProxy
                 typeBuilder = CreateType(_modBuilder, "DynamicProxy.DynamicInterface_" + interfaceToImplement.Name, interfaceToImplement.ToArrayItem<Type>());
                 TypeBuilders.Add(interfaceToImplement, typeBuilder);
 
-                Dictionary<string, FieldBuilder> dynamicProperties = GetDynamicProperties(interfaceToImplement, typeBuilder);
+                var dynamicMembersContainer = new Dictionary<MemberInfo, FieldBuilder>();
 
-                Dictionary<string, FieldBuilder> dynamicMethods = GetDynamicMethods(interfaceToImplement, typeBuilder);
+                GetDynamicProperties(interfaceToImplement, typeBuilder, dynamicMembersContainer);
+                GetDynamicMethods(interfaceToImplement, typeBuilder, dynamicMembersContainer);
 
                 if (interfaceToImplement.GetProperties().Any(pi => pi.GetIndexParameters().Count() > 0))
                 {
                     var dynamicIndexField = BuildPrivateReadonlyField(typeBuilder, "_indexer", typeof(DynamicIndex));
                     BuildDynamicIndexers(interfaceToImplement, typeBuilder, dynamicIndexField);
-                    BuildConstructor(typeBuilder, dynamicProperties, dynamicMethods, dynamicIndexField);
+                    BuildConstructor(typeBuilder, dynamicMembersContainer, dynamicIndexField);
                 }
                 else
                 {
-                    BuildConstructor(typeBuilder, dynamicProperties, dynamicMethods);
+                    BuildConstructor(typeBuilder, dynamicMembersContainer);
                 }
             }
             return typeBuilder;
@@ -361,35 +374,25 @@ namespace DynamicProxy
             }
         }
 
-        private static Dictionary<string, FieldBuilder> GetDynamicMethods(Type interfaceToImplement, TypeBuilder typeBuilder)
+        private static void GetDynamicMethods(Type interfaceToImplement, TypeBuilder typeBuilder, Dictionary<MemberInfo, FieldBuilder> dynamicMethods)
         {
-            var dynamicMethods = new Dictionary<string, FieldBuilder>();
             foreach (var method in interfaceToImplement.GetMethods().Where(mi => !mi.IsSpecialName))
             {
-                var methodName = GetMethodName(method);
+                var methodName = method.GetMethodNameWithTypes();
                 FieldBuilder dynamicMethod = BuildPrivateReadonlyField(typeBuilder, "_" + methodName, typeof(DynamicMethod));
-                dynamicMethods.Add(method.Name, dynamicMethod);
+                dynamicMethods.Add(method, dynamicMethod);
                 BuildMethod(typeBuilder, method, dynamicMethod);
             }
-            return dynamicMethods;
         }
 
-        private static Dictionary<string, FieldBuilder> GetDynamicProperties(Type interfaceToImplement, TypeBuilder typeBuilder)
+        private static void GetDynamicProperties(Type interfaceToImplement, TypeBuilder typeBuilder, Dictionary<MemberInfo, FieldBuilder> dynamicProperties)
         {
-            var dynamicProperties = new Dictionary<string, FieldBuilder>();
             foreach (var property in interfaceToImplement.GetProperties().Where(pi => pi.GetIndexParameters().Count() == 0))
             {
                 FieldBuilder dynamicProperty = BuildPrivateReadonlyField(typeBuilder, "_" + property.Name, typeof(DynamicProperty));
-                dynamicProperties.Add(property.Name, dynamicProperty);
+                dynamicProperties.Add(property, dynamicProperty);
                 BuildProperty(typeBuilder, property, dynamicProperty);
             }
-            return dynamicProperties;
-        }
-
-        private static string GetMethodName(MethodInfo method)
-        {
-            var fullName = method.GetParameters().Aggregate(method.Name, (pname, pi) => pname + pi.ParameterType.Name);
-            return fullName;
         }
 
         public static T CreateDynamicInterface<T>(object instance)

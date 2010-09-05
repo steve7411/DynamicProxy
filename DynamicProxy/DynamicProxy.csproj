@@ -48,7 +48,6 @@
   <ItemGroup>
     <Compile Include="DynamicIndex.cs" />
     <Compile Include="DynamicInterface.cs" />
-    <Compile Include="DynamicInterfaceBase.cs" />
     <Compile Include="DynamicMethod.cs" />
     <Compile Include="DynamicProperty.cs" />
     <Compile Include="DynamicProxy.cs" />

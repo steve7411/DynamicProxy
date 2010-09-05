@@ -19,6 +19,9 @@ namespace DynamicProxy
 
         public DynamicMethod(MethodInfo method, object instance)
         {
+            if (method == null)
+                throw new ArgumentNullException("method");
+
             _methodInfo = method;
             _instance = Expression.Constant(instance);
         }

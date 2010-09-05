@@ -1,0 +1,8 @@
+
+/DynamicProxy/bin
+/DynamicProxy/obj
+/DynamicProxy.Tests/obj
+/DynamicProxy.Tests/bin
+/_ReSharper.DynamicProxy
+*.suo
+*.suo

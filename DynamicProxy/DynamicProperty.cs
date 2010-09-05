@@ -31,6 +31,9 @@ namespace DynamicProxy
 
         public DynamicProperty(PropertyInfo property, object instance)
         {
+            if (property == null)
+                throw new ArgumentNullException("property");
+            
             _property = property;
             _instance = Expression.Constant(instance);
         }
