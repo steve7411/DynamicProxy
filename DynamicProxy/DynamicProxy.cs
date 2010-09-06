@@ -148,8 +148,9 @@ namespace DynamicProxy
 
             private bool FullfillsInterfacePropertyAndIndexerDefinitions(Type interfaceType)
             {
-                var interfacePropertyAccessors = interfaceType.GetProperties().SelectMany(p => p.GetAccessors()).Select(m => m.GetMethodNameWithTypes());
-                var instancePropertyAccessors = _proxy._instanceType.GetProperties().SelectMany(p => p.GetAccessors()).Select(m => m.GetMethodNameWithTypes());
+                const BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                var interfacePropertyAccessors = interfaceType.GetProperties(bindingFlags).SelectMany(p => p.GetAccessors(true)).Select(m => m.GetMethodNameWithTypes());
+                var instancePropertyAccessors = _proxy._instanceType.GetProperties(bindingFlags).SelectMany(p => p.GetAccessors(true)).Select(m => m.GetMethodNameWithTypes());
 
                 var propertyIntersection = interfacePropertyAccessors.Intersect(instancePropertyAccessors);
 
@@ -158,8 +159,9 @@ namespace DynamicProxy
 
             private bool FullfillsInterfaceMethodDefinitions(Type interfaceType)
             {
-                var interfaceMethods = interfaceType.GetMethods().Where(m => !m.IsSpecialName).Select(m => m.GetMethodNameWithTypes());
-                var instanceMethods = _proxy._instanceType.GetMethods().Where(m => !m.IsSpecialName).Select(m => m.GetMethodNameWithTypes());
+                const BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                var interfaceMethods = interfaceType.GetMethods(bindingFlags).Where(m => !m.IsSpecialName).Select(m => m.GetMethodNameWithTypes());
+                var instanceMethods = _proxy._instanceType.GetMethods(bindingFlags).Where(m => !m.IsSpecialName).Select(m => m.GetMethodNameWithTypes());
                 var methodIntersect = interfaceMethods.Intersect(instanceMethods);
 
                 return interfaceMethods.Count() == methodIntersect.Count();

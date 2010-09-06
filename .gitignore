@@ -5,4 +5,4 @@
 /DynamicProxy.Tests/bin
 /_ReSharper.DynamicProxy
 *.suo
-*.suo
+*.user

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace DynamicProxy.Tests
 {
@@ -33,7 +34,7 @@ namespace DynamicProxy.Tests
         int this[int index, int anotherIndex] { get; set; }
     }
 
-    internal class DummyClass
+    class DummyClass
     {
         private readonly string _readOnlyProperty;
         public DummyClass(string readOnlyPropertyValue)
@@ -54,7 +55,7 @@ namespace DynamicProxy.Tests
 
         public Dictionary<int, string> IndexableProperty { get; set; }
 
-        public string GetStringValue(object input, int anotherInput)
+        private string GetStringValue(object input, int anotherInput)
         {
             return input + " - " + anotherInput;
         }
