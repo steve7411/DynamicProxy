@@ -207,6 +207,25 @@ namespace DynamicProxy.Tests
 
         [TestMethod]
         [DeploymentItem("DynamicProxy.dll")]
+        public void DynamicProxy_Should_Return_An_Object_Implementing_The_Requested_Interfaces_Events()
+        {
+            dynamic proxy = new DynamicProxy(new DummyClass("NewString"));
+            IDummyEvents iDummy = proxy;
+            string result = null;
+
+            SomeDelegate someEvent = (a => result = "NewValue!");
+            iDummy.SomeEvent += someEvent;
+            iDummy.FireSomeEvent();
+            Assert.AreEqual("NewValue!", result);
+
+            result = null;
+            iDummy.SomeEvent -= someEvent;
+            iDummy.FireSomeEvent();
+            Assert.IsNull(result);
+        }
+
+        [TestMethod]
+        [DeploymentItem("DynamicProxy.dll")]
         [ExpectedException(typeof(RuntimeBinderException), AllowDerivedTypes = false)]
         public void DynamicProxy_Should_Throw_An_Exception_For_Casts_If_The_Conversion_Is_Not_Possible_Because_Methods_Do_Not_Match()
         {
@@ -232,6 +251,21 @@ namespace DynamicProxy.Tests
         {
             dynamic proxy = new DynamicProxy("");
             IDummyIndex iDummy = proxy;
+        }
+
+        [TestMethod]
+        [DeploymentItem("DynamicProxy.dll")]
+        [ExpectedException(typeof(RuntimeBinderException), AllowDerivedTypes = false)]
+        public void DynamicProxy_Should_Throw_An_Exception_For_Casts_If_The_Conversion_Is_Not_Possible_Because_Events_Do_Not_Match()
+        {
+            dynamic proxy = new DynamicProxy(new DummyClass2());
+            IDummyEvents iDummy = proxy;
+        }
+
+        [ClassCleanup]
+        public static void TearDown()
+        {
+            DynamicInterface_Accessor.SaveAssembly();
         }
     }
 }

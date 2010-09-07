@@ -24,7 +24,8 @@ namespace DynamicProxy.Tests
 
     public interface IDummyEvents
     {
-        event Action<string> SomeEvent;
+        event SomeDelegate SomeEvent;
+        void FireSomeEvent();
     }
 
     public interface IDummyIndex
@@ -33,6 +34,8 @@ namespace DynamicProxy.Tests
         string this[string index] { get; set; }
         int this[int index, int anotherIndex] { get; set; }
     }
+
+    public delegate void SomeDelegate(string s);
 
     class DummyClass
     {
@@ -82,7 +85,18 @@ namespace DynamicProxy.Tests
             return 1;
         }
 
-        public event Action<string> SomeEvent;
+        public event SomeDelegate SomeEvent;
+
+        public void FireSomeEvent()
+        {
+            SomeEvent += SomeAction;
+            SomeEvent("");
+        }
+
+        private void SomeAction(string s)
+        {
+
+        }
 
         private string _indexValue = "IndexValue";
         private int _anotherIndexValue;
@@ -110,5 +124,11 @@ namespace DynamicProxy.Tests
                 _anotherIndexValue = index + anotherIndex + value;
             }
         }
+    }
+
+    class DummyClass2
+    {
+        public void FireSomeEvent() { }
+
     }
 }

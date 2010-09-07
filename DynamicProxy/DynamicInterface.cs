@@ -84,9 +84,19 @@ namespace DynamicProxy
             {
                 if (kvp.Key is MethodInfo)
                     InitializeDynamicMethod(gen, kvp, loadInstanceTypeOpCode);
+                else if (kvp.Key is EventInfo)
+                    InitializeDynamicEvent(gen, kvp, loadInstanceTypeOpCode);
                 else
                     InitializeDynamicProperty(gen, kvp, loadInstanceTypeOpCode);
             }
+        }
+
+        private static void InitializeDynamicEvent(ILGenerator gen, KeyValuePair<MemberInfo, FieldBuilder> dynamicEvent, OpCode loadInstanceTypeOpCode)
+        {
+            ConstructorInfo dynamicEventdCtor = typeof(DynamicEvent).GetConstructor(BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(EventInfo), typeof(object) }, null);
+            MethodInfo typeGetEvent= typeof(Type).GetMethod("GetEvent", BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(string), typeof(BindingFlags) }, null);
+
+            InitializeField(dynamicEvent, gen, typeGetEvent, dynamicEventdCtor, loadInstanceTypeOpCode);
         }
 
         private static void InitializeDynamicIndex(ILGenerator gen, FieldBuilder dynamicIndexField)
@@ -159,6 +169,57 @@ namespace DynamicProxy
 
                 property.SetSetMethod(methodBuilder);
             }
+        }
+
+        private static MethodBuilder BuildGetter(TypeBuilder typeBuilder, PropertyInfo propertyInfo, FieldBuilder dynamicPropertyField)
+        {
+            var indexParameterTypes = propertyInfo.GetIndexParameters().Select(pi => pi.ParameterType).ToArray();
+            MethodBuilder method = typeBuilder.DefineMethod(propertyInfo.GetGetMethod().Name, PropertyAccessorMethodAttributes, propertyInfo.PropertyType, indexParameterTypes);
+
+            MethodInfo dynamicPropertyGet = typeof(DynamicProperty).GetMethod("Get", BindingFlags.Instance | BindingFlags.Public, null, Type.EmptyTypes, null);
+
+            method.SetReturnType(propertyInfo.PropertyType);
+
+            ILGenerator gen = method.GetILGenerator();
+
+            gen.Emit(OpCodes.Ldarg_0);
+            gen.Emit(OpCodes.Ldfld, dynamicPropertyField);
+            gen.Emit(OpCodes.Callvirt, dynamicPropertyGet);
+            gen.Emit(OpCodes.Castclass, propertyInfo.PropertyType);
+
+            if (propertyInfo.PropertyType.IsValueType)
+            {
+                gen.Emit(OpCodes.Unbox_Any, propertyInfo.PropertyType);
+            }
+            gen.Emit(OpCodes.Ret);
+
+            return method;
+        }
+
+        private static MethodBuilder BuildSetter(TypeBuilder typeBuilder, PropertyInfo propertyInfo, FieldBuilder dynamicPropertyField)
+        {
+            MethodBuilder method = typeBuilder.DefineMethod(propertyInfo.GetSetMethod().Name, PropertyAccessorMethodAttributes);
+
+            MethodInfo dynamicPropertySet = typeof(DynamicProperty).GetMethod("Set", BindingFlags.Instance | BindingFlags.Public, null, typeof(object).ToArrayItem<Type>(), null);
+
+            method.SetReturnType(typeof(void));
+
+            method.SetParameters(propertyInfo.PropertyType);
+
+            method.DefineParameter(1, ParameterAttributes.None, "value");
+            ILGenerator gen = method.GetILGenerator();
+
+            gen.Emit(OpCodes.Ldarg_0);
+            gen.Emit(OpCodes.Ldfld, dynamicPropertyField);
+            gen.Emit(OpCodes.Ldarg_1);
+
+            if (propertyInfo.PropertyType.IsValueType)
+                gen.Emit(OpCodes.Box, propertyInfo.PropertyType);
+
+            gen.Emit(OpCodes.Callvirt, dynamicPropertySet);
+            gen.Emit(OpCodes.Ret);
+
+            return method;
         }
 
         private static MethodBuilder BuildIndexerSetter(TypeBuilder typeBuilder, PropertyInfo propertyInfo, FieldBuilder dynamicIndexField)
@@ -260,56 +321,52 @@ namespace DynamicProxy
             }
         }
 
-        private static MethodBuilder BuildGetter(TypeBuilder typeBuilder, PropertyInfo propertyInfo, FieldBuilder dynamicPropertyField)
+        private static void BuildEvent(TypeBuilder typeBuilder, EventInfo eventInfo, FieldBuilder dynamicEventField)
         {
-            var indexParameterTypes = propertyInfo.GetIndexParameters().Select(pi => pi.ParameterType).ToArray();
-            MethodBuilder method = typeBuilder.DefineMethod(propertyInfo.GetGetMethod().Name, PropertyAccessorMethodAttributes, propertyInfo.PropertyType, indexParameterTypes);
+            EventBuilder eventBuilder = typeBuilder.DefineEvent(eventInfo.Name, EventAttributes.None, eventInfo.EventHandlerType);
 
-            MethodInfo dynamicPropertyGet = typeof(DynamicProperty).GetMethod("Get", BindingFlags.Instance | BindingFlags.Public, null, Type.EmptyTypes, null);
-
-            method.SetReturnType(propertyInfo.PropertyType);
-
-            ILGenerator gen = method.GetILGenerator();
-
-            gen.Emit(OpCodes.Ldarg_0);
-            gen.Emit(OpCodes.Ldfld, dynamicPropertyField);
-            gen.Emit(OpCodes.Callvirt, dynamicPropertyGet);
-            gen.Emit(OpCodes.Castclass, propertyInfo.PropertyType);
-
-            if (propertyInfo.PropertyType.IsValueType)
-            {
-                gen.Emit(OpCodes.Unbox_Any, propertyInfo.PropertyType);
-            }
-            gen.Emit(OpCodes.Ret);
-
-            return method;
+            eventBuilder.SetAddOnMethod(DefineEventAdder(typeBuilder, eventInfo, dynamicEventField));
+            eventBuilder.SetRemoveOnMethod(DefineEventRemover(typeBuilder, eventInfo, dynamicEventField));
         }
 
-        private static MethodBuilder BuildSetter(TypeBuilder typeBuilder, PropertyInfo propertyInfo, FieldBuilder dynamicPropertyField)
+        private static MethodBuilder DefineEventAdder(TypeBuilder typeBuilder, EventInfo eventInfo, FieldBuilder dynamicEventField)
         {
-            MethodBuilder method = typeBuilder.DefineMethod(propertyInfo.GetSetMethod().Name, PropertyAccessorMethodAttributes);
+            MethodBuilder addMethod = typeBuilder.DefineMethod(eventInfo.GetAddMethod(true).Name, PropertyAccessorMethodAttributes, typeof(void), eventInfo.EventHandlerType.ToArrayItem<Type>());
+            MethodInfo dynamicEventAdd = typeof(DynamicEvent).GetMethod("Add", BindingFlags.Instance | BindingFlags.Public, null, typeof(object).ToArrayItem<Type>(), null);
 
-            MethodInfo dynamicPropertySet = typeof(DynamicProperty).GetMethod("Set", BindingFlags.Instance | BindingFlags.Public, null, typeof(object).ToArrayItem<Type>(), null);
+            addMethod.DefineParameter(1, ParameterAttributes.None, "value");
 
-            method.SetReturnType(typeof(void));
-
-            method.SetParameters(propertyInfo.PropertyType);
-
-            method.DefineParameter(1, ParameterAttributes.None, "value");
-            ILGenerator gen = method.GetILGenerator();
+            ILGenerator gen = addMethod.GetILGenerator();
 
             gen.Emit(OpCodes.Ldarg_0);
-            gen.Emit(OpCodes.Ldfld, dynamicPropertyField);
+            gen.Emit(OpCodes.Ldfld, dynamicEventField);
             gen.Emit(OpCodes.Ldarg_1);
-
-            if (propertyInfo.PropertyType.IsValueType)
-                gen.Emit(OpCodes.Box, propertyInfo.PropertyType);
-
-            gen.Emit(OpCodes.Callvirt, dynamicPropertySet);
+            gen.Emit(OpCodes.Castclass, typeof(object));
+            gen.Emit(OpCodes.Callvirt, dynamicEventAdd);
             gen.Emit(OpCodes.Ret);
 
-            return method;
+            return addMethod;
         }
+
+        private static MethodBuilder DefineEventRemover(TypeBuilder typeBuilder, EventInfo eventInfo, FieldBuilder dynamicEventField)
+        {
+            MethodBuilder removeMethod = typeBuilder.DefineMethod(eventInfo.GetRemoveMethod(true).Name, PropertyAccessorMethodAttributes, typeof(void), eventInfo.EventHandlerType.ToArrayItem<Type>());
+            MethodInfo dynamicEventRemove = typeof(DynamicEvent).GetMethod("Remove", BindingFlags.Instance | BindingFlags.Public, null, typeof(object).ToArrayItem<Type>(), null);
+
+            removeMethod.DefineParameter(1, ParameterAttributes.None, "value");
+
+            ILGenerator gen = removeMethod.GetILGenerator();
+
+            gen.Emit(OpCodes.Ldarg_0);
+            gen.Emit(OpCodes.Ldfld, dynamicEventField);
+            gen.Emit(OpCodes.Ldarg_1);
+            gen.Emit(OpCodes.Castclass, typeof(object));
+            gen.Emit(OpCodes.Callvirt, dynamicEventRemove);
+            gen.Emit(OpCodes.Ret);
+
+            return removeMethod;
+        }
+
 
         private static void BuildMethod(TypeBuilder typeBuilder, MethodInfo methodToWrap, FieldInfo dynamicMethodField)
         {
@@ -348,6 +405,7 @@ namespace DynamicProxy
 
                 GetDynamicProperties(interfaceToImplement, typeBuilder, dynamicMembersContainer);
                 GetDynamicMethods(interfaceToImplement, typeBuilder, dynamicMembersContainer);
+                BuildDynamicEvents(interfaceToImplement, typeBuilder, dynamicMembersContainer);
 
                 if (interfaceToImplement.GetProperties().Any(pi => pi.GetIndexParameters().Count() > 0))
                 {
@@ -361,6 +419,16 @@ namespace DynamicProxy
                 }
             }
             return typeBuilder;
+        }
+
+        private static void BuildDynamicEvents(Type interfaceToImplement, TypeBuilder typeBuilder, Dictionary<MemberInfo, FieldBuilder> dynamicMembersContainer)
+        {
+            foreach (var eventInfo in interfaceToImplement.GetEvents(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+            {
+                FieldBuilder dynamicEvent = BuildPrivateReadonlyField(typeBuilder, "_" + eventInfo.Name, typeof(DynamicEvent));
+                dynamicMembersContainer.Add(eventInfo, dynamicEvent);
+                BuildEvent(typeBuilder, eventInfo, dynamicEvent);
+            }
         }
 
         private static void BuildDynamicIndexers(Type interfaceToImplement, TypeBuilder typeBuilder, FieldBuilder dynamicIndexField)
