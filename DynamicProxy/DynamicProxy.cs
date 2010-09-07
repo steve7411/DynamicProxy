@@ -131,7 +131,7 @@ namespace DynamicProxy
                 {
                     return new DynamicMetaObject(Expression.Constant(DynamicInterface.CreateDynamicInterface(binder.Type, _proxy._instance)), BindingRestrictions.GetTypeRestriction(Expression, LimitType));
                 }
-                
+
                 throw new RuntimeBinderException(String.Format("Cannot convert type {0} to {1}.", _proxy._instanceType.FullName, binder.Type.FullName));
             }
 
@@ -150,8 +150,8 @@ namespace DynamicProxy
             private bool FullfillsInterfaceEventDefinitions(Type interfaceType)
             {
                 const BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-                var interfaceEventAccessors = interfaceType.GetEvents(bindingFlags).SelectMany(e => new[] {e.GetAddMethod(true), e.GetRemoveMethod(true)}).Select(m => m.GetMethodNameWithTypes());
-                var instanceEventAccessors = _proxy._instanceType.GetEvents(bindingFlags).SelectMany(e => new[] {e.GetAddMethod(true), e.GetRemoveMethod(true)}).Select(m => m.GetMethodNameWithTypes());
+                var interfaceEventAccessors = interfaceType.GetEvents(bindingFlags).SelectMany(e => new[] { e.GetAddMethod(true), e.GetRemoveMethod(true) }).Select(m => m.GetMethodNameWithTypes());
+                var instanceEventAccessors = _proxy._instanceType.GetEvents(bindingFlags).SelectMany(e => new[] { e.GetAddMethod(true), e.GetRemoveMethod(true) }).Select(m => m.GetMethodNameWithTypes());
 
                 var eventIntersection = interfaceEventAccessors.Intersect(instanceEventAccessors);
 

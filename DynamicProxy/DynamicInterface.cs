@@ -94,7 +94,7 @@ namespace DynamicProxy
         private static void InitializeDynamicEvent(ILGenerator gen, KeyValuePair<MemberInfo, FieldBuilder> dynamicEvent, OpCode loadInstanceTypeOpCode)
         {
             ConstructorInfo dynamicEventdCtor = typeof(DynamicEvent).GetConstructor(BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(EventInfo), typeof(object) }, null);
-            MethodInfo typeGetEvent= typeof(Type).GetMethod("GetEvent", BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(string), typeof(BindingFlags) }, null);
+            MethodInfo typeGetEvent = typeof(Type).GetMethod("GetEvent", BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(string), typeof(BindingFlags) }, null);
 
             InitializeField(dynamicEvent, gen, typeGetEvent, dynamicEventdCtor, loadInstanceTypeOpCode);
         }

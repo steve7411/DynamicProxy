@@ -33,9 +33,9 @@ namespace DynamicProxy
         {
             if (property == null)
                 throw new ArgumentNullException("property");
-            
+
             _property = property;
-            _instance = Expression.Constant(instance);
+            _instance = property.GetGetMethod(true).IsStatic ? null : Expression.Constant(instance);
         }
 
         public UnaryExpression GetGetterExpression()

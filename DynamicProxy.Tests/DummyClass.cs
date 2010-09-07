@@ -39,6 +39,12 @@ namespace DynamicProxy.Tests
 
     class DummyClass
     {
+        public static int StaticProperty { get; set; }
+        public static int StaticMethod(int input)
+        {
+            return input;
+        }
+
         private readonly string _readOnlyProperty;
         public DummyClass(string readOnlyPropertyValue)
         {

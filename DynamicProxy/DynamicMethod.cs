@@ -23,7 +23,7 @@ namespace DynamicProxy
                 throw new ArgumentNullException("method");
 
             _methodInfo = method;
-            _instance = Expression.Constant(instance);
+            _instance = method.IsStatic ? null : Expression.Constant(instance);
         }
 
         public Expression GetMethodExpression(IEnumerable<Expression> args)

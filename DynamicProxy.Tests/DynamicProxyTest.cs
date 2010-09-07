@@ -34,6 +34,16 @@ namespace DynamicProxy.Tests
 
         [TestMethod]
         [DeploymentItem("DynamicProxy.dll")]
+        public void DynamicProxy_Should_Map_Static_Properties_To_The_Given_Instance()
+        {
+            dynamic proxy = new DynamicProxy(new DummyClass(""));
+
+            proxy.StaticProperty = 11;
+            Assert.AreEqual(11, proxy.StaticProperty);
+        }
+
+        [TestMethod]
+        [DeploymentItem("DynamicProxy.dll")]
         [ExpectedException(typeof(ArgumentException), AllowDerivedTypes = false)]
         public void DynamicProxy_Should_Throw_RuntimeBinderException_When_Property_Is_Not_Writable()
         {
@@ -44,7 +54,7 @@ namespace DynamicProxy.Tests
 
         [TestMethod]
         [DeploymentItem("DynamicProxy.dll")]
-        public void DynamicProxy_Should_Map_Method_Calls_To_The_Given_Instance()
+        public void DynamicProxy_Should_Map_Instance_Method_Calls_To_The_Given_Instance()
         {
             const string instance = "TestString";
             dynamic proxy = new DynamicProxy(instance);
@@ -58,6 +68,15 @@ namespace DynamicProxy.Tests
             Assert.AreEqual(instance, new string(toCharArrayResult));
             Assert.AreEqual(new string(instance.ToCharArray(0, 4)), new string(toCharArrayIndexResult));
             Assert.AreEqual(instance.Substring(0, 9), new string(copyResult));
+        }
+
+        [TestMethod]
+        [DeploymentItem("DynamicProxy.dll")]
+        public void DynamicProxy_Should_Map_Static_Method_Calls_To_The_Given_Instance()
+        {
+            dynamic proxy = new DynamicProxy(new DummyClass(""));
+
+            Assert.AreEqual(12, proxy.StaticMethod(12));
         }
 
         [TestMethod]
@@ -133,7 +152,7 @@ namespace DynamicProxy.Tests
             dynamic proxy = new DynamicProxy(new[] { 1, 2 });
 
             var results = new List<int>();
-            
+
             IEnumerable integers = proxy;
             foreach (int integer in integers)
             {
@@ -167,7 +186,7 @@ namespace DynamicProxy.Tests
             const string written = "Written";
 
             Assert.AreEqual("NewString", iDummy.ReadOnlyProperty);
-         
+
             iDummy.WritableProperty = written;
             Assert.AreEqual(written, iDummy.WritableProperty);
 
@@ -202,7 +221,7 @@ namespace DynamicProxy.Tests
             Assert.AreEqual("index - SomeNewText", iDummy["index"]);
 
             iDummy[1, 2] = 3;
-            Assert.AreEqual(9, iDummy[1,2]);
+            Assert.AreEqual(9, iDummy[1, 2]);
         }
 
         [TestMethod]
