@@ -288,6 +288,12 @@ namespace DynamicProxy.Tests
             var dummy = new DummyClass("String Value");
             dynamic proxy = new DynamicProxy(new DynamicProxy(new DynamicProxy(new DynamicProxy(dummy))));
 
+            const string things = "things";
+            dummy.WritableProperty = things;
+            proxy.WritableProperty = things;
+
+            Assert.AreEqual(dummy.WritableProperty, proxy.WritableProperty);
+
             Assert.AreEqual(dummy.ReadOnlyProperty, proxy.ReadOnlyProperty);
             Assert.AreEqual(dummy.ReadOnlyProperty.Length, proxy.ReadOnlyProperty.Length);
             Assert.IsTrue(proxy.Equals(dummy));
