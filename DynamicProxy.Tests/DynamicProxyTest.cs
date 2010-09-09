@@ -44,7 +44,7 @@ namespace DynamicProxy.Tests
 
         [TestMethod]
         [DeploymentItem("DynamicProxy.dll")]
-        [ExpectedException(typeof(ArgumentException), AllowDerivedTypes = false)]
+        [ExpectedException(typeof(RuntimeBinderException), AllowDerivedTypes = false)]
         public void DynamicProxy_Should_Throw_RuntimeBinderException_When_Property_Is_Not_Writable()
         {
             dynamic proxy = new DynamicProxy(new DummyClass(""));
@@ -279,6 +279,22 @@ namespace DynamicProxy.Tests
         {
             dynamic proxy = new DynamicProxy(new DummyClass2());
             IDummyEvents iDummy = proxy;
+        }
+
+        [TestMethod]
+        [DeploymentItem("DynamicProxy.dll")]
+        public void DynamicProxy_Should_Map_Members_To_Given_Instance_When_Instance_Is_A_Dynamic_Type()
+        {
+            var dummy = new DummyClass("String Value");
+            dynamic proxy = new DynamicProxy(new DynamicProxy(new DynamicProxy(new DynamicProxy(dummy))));
+
+            Assert.AreEqual(dummy.ReadOnlyProperty, proxy.ReadOnlyProperty);
+            Assert.AreEqual(dummy.ReadOnlyProperty.Length, proxy.ReadOnlyProperty.Length);
+            Assert.IsTrue(proxy.Equals(dummy));
+
+            Assert.AreEqual(dummy.GetInt(12), proxy.GetInt(12));
+
+            Assert.AreEqual(dummy[1, 2], proxy[1, 2]);
         }
 
         [ClassCleanup]

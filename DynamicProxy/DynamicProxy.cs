@@ -35,7 +35,8 @@ namespace DynamicProxy
 
         public DynamicMetaObject GetMetaObject(Expression parameter)
         {
-            return new DynamicProxyMetaObject(parameter, this);
+            var dynamicObject = _instance as IDynamicMetaObjectProvider;
+            return dynamicObject != null ? dynamicObject.GetMetaObject(parameter) : new DynamicProxyMetaObject(parameter, this);
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

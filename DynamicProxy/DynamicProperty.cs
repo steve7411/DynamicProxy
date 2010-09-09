@@ -7,27 +7,10 @@ namespace DynamicProxy
 {
     public class DynamicProperty
     {
-        private readonly ConstantExpression _instance;
         private readonly PropertyInfo _property;
 
-        private Func<object> _getterMethod;
-        private Action<object> _setterMethod;
-
-        private Func<object> GetterMethod
-        {
-            get
-            {
-                return _getterMethod ?? (_getterMethod = GetGetterMethod());
-            }
-        }
-
-        private Action<object> SetterMethod
-        {
-            get
-            {
-                return _setterMethod ?? (_setterMethod = GetSetterMethod());
-            }
-        }
+        private readonly DynamicMethod _getterMethod;
+        private readonly DynamicMethod _setterMethod;
 
         public DynamicProperty(PropertyInfo property, object instance)
         {
@@ -35,44 +18,46 @@ namespace DynamicProxy
                 throw new ArgumentNullException("property");
 
             _property = property;
-            _instance = property.GetGetMethod(true).IsStatic ? null : Expression.Constant(instance);
+
+            if (property.CanRead)
+            {
+                _getterMethod = new DynamicMethod(property.GetGetMethod(true), instance);
+            }
+
+            if (property.CanWrite)
+            {
+                _setterMethod = new DynamicMethod(property.GetSetMethod(true), instance);
+            }
         }
 
-        public UnaryExpression GetGetterExpression()
+        public Expression GetGetterExpression()
         {
-            return Expression.Convert(Expression.Property(_instance, _property), typeof(object));
+            if (!_property.CanRead)
+                throw new RuntimeBinderException(String.Format("The property \"{0}\" is not readable.", _property.Name));
+
+            return _getterMethod.GetMethodExpression(new Expression[0]);
         }
 
-        public UnaryExpression GetSetterExpression(Expression value)
+        public Expression GetSetterExpression(Expression value)
         {
-            MemberExpression propertyExpression = Expression.Property(_instance, _property);
-            return Expression.Convert(Expression.Assign(propertyExpression, Expression.Convert(value, _property.PropertyType)), typeof(object));
-        }
+            if (!_property.CanWrite)
+                throw new RuntimeBinderException(String.Format("The property \"{0}\" is not writable.", _property.Name));
 
-        private Func<object> GetGetterMethod()
-        {
-            return Expression.Lambda<Func<object>>(GetGetterExpression(), null).Compile();
-        }
-
-        private Action<object> GetSetterMethod()
-        {
-            MemberExpression propertyExpression = Expression.Property(_instance, _property);
-            ParameterExpression valueExpression = Expression.Parameter(typeof(object), "value");
-            BinaryExpression assignment = Expression.Assign(propertyExpression, Expression.Convert(valueExpression, _property.PropertyType));
-            Expression<Action<object>> lambda = Expression.Lambda<Action<object>>(assignment, valueExpression);
-            return lambda.Compile();
+            return _setterMethod.GetMethodExpression(value.ToArrayItem<Expression>());
         }
 
         public object Get()
         {
-            return GetterMethod();
+            if (!_property.CanRead)
+                throw new RuntimeBinderException(String.Format("The property \"{0}\" is not readable.", _property.Name));
+            return _getterMethod.Invoke();
         }
 
         public void Set(object value)
         {
             if (!_property.CanWrite)
                 throw new RuntimeBinderException(String.Format("The property \"{0}\" is not writable.", _property.Name));
-            SetterMethod(value);
+            _setterMethod.Invoke(value);
         }
     }
 }
