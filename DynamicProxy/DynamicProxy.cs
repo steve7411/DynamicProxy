@@ -73,7 +73,7 @@ namespace DynamicProxy
         {
             private readonly DynamicProxy _proxy;
 
-            private DynamicIndex _index;
+            private DynamicIndexer _index;
 
             public DynamicProxyMetaObject(Expression expression, DynamicProxy proxy)
                 : base(expression, BindingRestrictions.Empty, proxy)
@@ -81,9 +81,9 @@ namespace DynamicProxy
                 _proxy = proxy;
             }
 
-            private DynamicIndex Index
+            private DynamicIndexer Index
             {
-                get { return _index ?? (_index = new DynamicIndex(_proxy._instance)); }
+                get { return _index ?? (_index = new DynamicIndexer(_proxy._instance)); }
             }
 
             public override DynamicMetaObject BindGetMember(GetMemberBinder binder)

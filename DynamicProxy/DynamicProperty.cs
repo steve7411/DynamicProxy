@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.CSharp.RuntimeBinder;
@@ -30,34 +31,36 @@ namespace DynamicProxy
             }
         }
 
-        public Expression GetGetterExpression()
+        public Expression GetGetterExpression(params Expression[] indexParameters)
         {
             if (!_property.CanRead)
                 throw new RuntimeBinderException(String.Format("The property \"{0}\" is not readable.", _property.Name));
 
-            return _getterMethod.GetMethodExpression(new Expression[0]);
+            return _getterMethod.GetMethodExpression(indexParameters);
         }
 
-        public Expression GetSetterExpression(Expression value)
+        public Expression GetSetterExpression(Expression value, params Expression[] indexParameters)
         {
             if (!_property.CanWrite)
                 throw new RuntimeBinderException(String.Format("The property \"{0}\" is not writable.", _property.Name));
 
-            return _setterMethod.GetMethodExpression(value.ToArrayItem<Expression>());
+            return _setterMethod.GetMethodExpression(indexParameters.Concat(value.ToArrayItem<Expression>()).ToArray());
         }
 
-        public object Get()
+        public object Get(params object[] indexParameters)
         {
             if (!_property.CanRead)
                 throw new RuntimeBinderException(String.Format("The property \"{0}\" is not readable.", _property.Name));
-            return _getterMethod.Invoke();
+
+            return _getterMethod.Invoke(indexParameters);
         }
 
-        public void Set(object value)
+        public void Set(object[] indexParameters, object value)
         {
             if (!_property.CanWrite)
                 throw new RuntimeBinderException(String.Format("The property \"{0}\" is not writable.", _property.Name));
-            _setterMethod.Invoke(value);
+            
+            _setterMethod.Invoke(indexParameters.Concat(value.ToArrayItem<object>()).ToArray());
         }
     }
 }

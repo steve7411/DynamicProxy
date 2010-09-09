@@ -47,7 +47,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DynamicEvent.cs" />
-    <Compile Include="DynamicIndex.cs" />
+    <Compile Include="DynamicIndexer.cs" />
     <Compile Include="DynamicInterface.cs" />
     <Compile Include="DynamicMethod.cs" />
     <Compile Include="DynamicProperty.cs" />

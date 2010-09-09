@@ -104,7 +104,7 @@ namespace DynamicProxy
             if (dynamicIndexField == null)
                 return;
 
-            ConstructorInfo dynamicIndexCtor = typeof(DynamicIndex).GetConstructor(BindingFlags.Instance | BindingFlags.Public, null, typeof(object).ToArrayItem<Type>(), null);
+            ConstructorInfo dynamicIndexCtor = typeof(DynamicIndexer).GetConstructor(BindingFlags.Instance | BindingFlags.Public, null, typeof(object).ToArrayItem<Type>(), null);
 
             gen.Emit(OpCodes.Ldarg_0);
             gen.Emit(OpCodes.Ldarg_1);
@@ -176,22 +176,24 @@ namespace DynamicProxy
             var indexParameterTypes = propertyInfo.GetIndexParameters().Select(pi => pi.ParameterType).ToArray();
             MethodBuilder method = typeBuilder.DefineMethod(propertyInfo.GetGetMethod().Name, PropertyAccessorMethodAttributes, propertyInfo.PropertyType, indexParameterTypes);
 
-            MethodInfo dynamicPropertyGet = typeof(DynamicProperty).GetMethod("Get", BindingFlags.Instance | BindingFlags.Public, null, Type.EmptyTypes, null);
+            MethodInfo dynamicPropertyGet = typeof(DynamicProperty).GetMethod("Get", BindingFlags.Instance | BindingFlags.Public, null, typeof(object[]).ToArrayItem<Type>(), null);
 
             method.SetReturnType(propertyInfo.PropertyType);
 
             ILGenerator gen = method.GetILGenerator();
 
-            gen.Emit(OpCodes.Ldarg_0);
-            gen.Emit(OpCodes.Ldfld, dynamicPropertyField);
-            gen.Emit(OpCodes.Callvirt, dynamicPropertyGet);
-            gen.Emit(OpCodes.Castclass, propertyInfo.PropertyType);
+            EmitPopulateObjectArrayArgumentAndCallMethod(propertyInfo.PropertyType, propertyInfo.GetIndexParameters(), gen, dynamicPropertyField, dynamicPropertyGet);
 
-            if (propertyInfo.PropertyType.IsValueType)
-            {
-                gen.Emit(OpCodes.Unbox_Any, propertyInfo.PropertyType);
-            }
-            gen.Emit(OpCodes.Ret);
+            //gen.Emit(OpCodes.Ldarg_0);
+            //gen.Emit(OpCodes.Ldfld, dynamicPropertyField);
+            //gen.Emit(OpCodes.Callvirt, dynamicPropertyGet);
+            //gen.Emit(OpCodes.Castclass, propertyInfo.PropertyType);
+
+            //if (propertyInfo.PropertyType.IsValueType)
+            //{
+            //    gen.Emit(OpCodes.Unbox_Any, propertyInfo.PropertyType);
+            //}
+            //gen.Emit(OpCodes.Ret);
 
             return method;
         }
@@ -200,7 +202,7 @@ namespace DynamicProxy
         {
             MethodBuilder method = typeBuilder.DefineMethod(propertyInfo.GetSetMethod().Name, PropertyAccessorMethodAttributes);
 
-            MethodInfo dynamicPropertySet = typeof(DynamicProperty).GetMethod("Set", BindingFlags.Instance | BindingFlags.Public, null, typeof(object).ToArrayItem<Type>(), null);
+            MethodInfo dynamicPropertySet = typeof(DynamicProperty).GetMethod("Set", BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(object[]), typeof(object) }, null);
 
             method.SetReturnType(typeof(void));
 
@@ -209,15 +211,17 @@ namespace DynamicProxy
             method.DefineParameter(1, ParameterAttributes.None, "value");
             ILGenerator gen = method.GetILGenerator();
 
-            gen.Emit(OpCodes.Ldarg_0);
-            gen.Emit(OpCodes.Ldfld, dynamicPropertyField);
-            gen.Emit(OpCodes.Ldarg_1);
+            EmitPopulateObjectArrayArgumentAndCallMethod(propertyInfo.PropertyType, propertyInfo.GetIndexParameters(), gen, dynamicPropertyField, dynamicPropertySet, true);
 
-            if (propertyInfo.PropertyType.IsValueType)
-                gen.Emit(OpCodes.Box, propertyInfo.PropertyType);
+            //gen.Emit(OpCodes.Ldarg_0);
+            //gen.Emit(OpCodes.Ldfld, dynamicPropertyField);
+            //gen.Emit(OpCodes.Ldarg_1);
 
-            gen.Emit(OpCodes.Callvirt, dynamicPropertySet);
-            gen.Emit(OpCodes.Ret);
+            //if (propertyInfo.PropertyType.IsValueType)
+            //    gen.Emit(OpCodes.Box, propertyInfo.PropertyType);
+
+            //gen.Emit(OpCodes.Callvirt, dynamicPropertySet);
+            //gen.Emit(OpCodes.Ret);
 
             return method;
         }
@@ -227,7 +231,7 @@ namespace DynamicProxy
             var indexParameters = propertyInfo.GetIndexParameters();
             MethodBuilder method = typeBuilder.DefineMethod(propertyInfo.GetSetMethod().Name, PropertyAccessorMethodAttributes);
 
-            MethodInfo dynamicIndexSet = typeof(DynamicIndex).GetMethod("Set", BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(object[]), typeof(object) }, null);
+            MethodInfo dynamicIndexSet = typeof(DynamicIndexer).GetMethod("Set", BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(object[]), typeof(object) }, null);
 
             method.SetReturnType(typeof(void));
 
@@ -256,7 +260,7 @@ namespace DynamicProxy
             var indexParameterTypes = indexParameters.Select(pi => pi.ParameterType).ToArray();
             MethodBuilder method = typeBuilder.DefineMethod(propertyInfo.GetGetMethod().Name, PropertyAccessorMethodAttributes, propertyInfo.PropertyType, indexParameterTypes);
 
-            MethodInfo dynamicIndexGet = typeof(DynamicIndex).GetMethod("Get", BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(object[]) }, null);
+            MethodInfo dynamicIndexGet = typeof(DynamicIndexer).GetMethod("Get", BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(object[]) }, null);
 
             for (int i = 0; i < indexParameters.Length; i++)
             {
@@ -409,7 +413,7 @@ namespace DynamicProxy
 
                 if (interfaceToImplement.GetProperties().Any(pi => pi.GetIndexParameters().Count() > 0))
                 {
-                    var dynamicIndexField = BuildPrivateReadonlyField(typeBuilder, "_indexer", typeof(DynamicIndex));
+                    var dynamicIndexField = BuildPrivateReadonlyField(typeBuilder, "_indexer", typeof(DynamicIndexer));
                     BuildDynamicIndexers(interfaceToImplement, typeBuilder, dynamicIndexField);
                     BuildConstructor(typeBuilder, dynamicMembersContainer, dynamicIndexField);
                 }
