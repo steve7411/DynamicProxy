@@ -322,12 +322,7 @@ namespace DynamicProxy
 
             ILGenerator gen = addMethod.GetILGenerator();
 
-            gen.Emit(OpCodes.Ldarg_0);
-            gen.Emit(OpCodes.Ldfld, dynamicEventField);
-            gen.Emit(OpCodes.Ldarg_1);
-            gen.Emit(OpCodes.Castclass, typeof(object));
-            gen.Emit(OpCodes.Callvirt, dynamicEventAdd);
-            gen.Emit(OpCodes.Ret);
+            BuildCallVoidWithOneParameter(gen, dynamicEventField, dynamicEventAdd);
 
             return addMethod;
         }
@@ -341,14 +336,19 @@ namespace DynamicProxy
 
             ILGenerator gen = removeMethod.GetILGenerator();
 
+            BuildCallVoidWithOneParameter(gen, dynamicEventField, dynamicEventRemove);
+
+            return removeMethod;
+        }
+
+        private static void BuildCallVoidWithOneParameter(ILGenerator gen, FieldBuilder dynamicEventField, MethodInfo dynamicEventAdd)
+        {
             gen.Emit(OpCodes.Ldarg_0);
             gen.Emit(OpCodes.Ldfld, dynamicEventField);
             gen.Emit(OpCodes.Ldarg_1);
             gen.Emit(OpCodes.Castclass, typeof(object));
-            gen.Emit(OpCodes.Callvirt, dynamicEventRemove);
+            gen.Emit(OpCodes.Callvirt, dynamicEventAdd);
             gen.Emit(OpCodes.Ret);
-
-            return removeMethod;
         }
 
 
