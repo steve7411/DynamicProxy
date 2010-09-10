@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
+using Microsoft.CSharp.RuntimeBinder;
 
 namespace DynamicProxy
 {
@@ -184,17 +185,6 @@ namespace DynamicProxy
 
             EmitPopulateObjectArrayArgumentAndCallMethod(propertyInfo.PropertyType, propertyInfo.GetIndexParameters(), gen, dynamicPropertyField, dynamicPropertyGet);
 
-            //gen.Emit(OpCodes.Ldarg_0);
-            //gen.Emit(OpCodes.Ldfld, dynamicPropertyField);
-            //gen.Emit(OpCodes.Callvirt, dynamicPropertyGet);
-            //gen.Emit(OpCodes.Castclass, propertyInfo.PropertyType);
-
-            //if (propertyInfo.PropertyType.IsValueType)
-            //{
-            //    gen.Emit(OpCodes.Unbox_Any, propertyInfo.PropertyType);
-            //}
-            //gen.Emit(OpCodes.Ret);
-
             return method;
         }
 
@@ -212,16 +202,6 @@ namespace DynamicProxy
             ILGenerator gen = method.GetILGenerator();
 
             EmitPopulateObjectArrayArgumentAndCallMethod(propertyInfo.PropertyType, propertyInfo.GetIndexParameters(), gen, dynamicPropertyField, dynamicPropertySet, true);
-
-            //gen.Emit(OpCodes.Ldarg_0);
-            //gen.Emit(OpCodes.Ldfld, dynamicPropertyField);
-            //gen.Emit(OpCodes.Ldarg_1);
-
-            //if (propertyInfo.PropertyType.IsValueType)
-            //    gen.Emit(OpCodes.Box, propertyInfo.PropertyType);
-
-            //gen.Emit(OpCodes.Callvirt, dynamicPropertySet);
-            //gen.Emit(OpCodes.Ret);
 
             return method;
         }
@@ -465,16 +445,64 @@ namespace DynamicProxy
 
         public static T CreateDynamicInterface<T>(object instance)
         {
-            Type proxyType = GetTypeBuilder(typeof(T)).CreateType();
-
-            return (T)proxyType.GetConstructor(typeof(object).ToArrayItem<Type>()).Invoke(instance.ToArrayItem<object>());
+            return (T)CreateDynamicInterface(typeof(T), instance);
         }
 
         public static object CreateDynamicInterface(Type interfaceToImplement, object instance)
         {
             Type proxyType = GetTypeBuilder(interfaceToImplement).CreateType();
 
-            return proxyType.GetConstructor(typeof(object).ToArrayItem<Type>()).Invoke(instance.ToArrayItem<object>());
+            var instanceType = instance.GetType();
+            if (FullfillsInterfaceDefinitions(interfaceToImplement, instanceType))
+            {
+                return proxyType.GetConstructor(typeof(object).ToArrayItem<Type>()).Invoke(instance.ToArrayItem<object>());
+            }
+
+            throw new RuntimeBinderException(String.Format("Cannot convert type {0} to {1}.", instanceType.FullName, interfaceToImplement.FullName));
+        }
+
+        private static bool FullfillsInterfaceDefinitions(Type interfaceType, Type instanceType)
+        {
+            if (!interfaceType.IsInterface)
+            {
+                return false;
+            }
+
+            return FulfillsInterfaceMethodDefinitions(interfaceType, instanceType)
+                   && FulfillsInterfacePropertyAndIndexerDefinitions(interfaceType, instanceType)
+                   && FulfillsInterfaceEventDefinitions(interfaceType, instanceType);
+        }
+
+        private static bool FulfillsInterfaceEventDefinitions(Type interfaceType, Type instanceType)
+        {
+            const BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            var interfaceEventAccessors = interfaceType.GetEvents(bindingFlags).SelectMany(e => new[] { e.GetAddMethod(true), e.GetRemoveMethod(true) }).Select(m => m.GetMethodNameWithTypes());
+            var instanceEventAccessors = instanceType.GetEvents(bindingFlags).SelectMany(e => new[] { e.GetAddMethod(true), e.GetRemoveMethod(true) }).Select(m => m.GetMethodNameWithTypes());
+
+            var eventIntersection = interfaceEventAccessors.Intersect(instanceEventAccessors);
+
+            return eventIntersection.Count() == interfaceEventAccessors.Count();
+        }
+
+        private static bool FulfillsInterfacePropertyAndIndexerDefinitions(IReflect interfaceType, IReflect instanceType)
+        {
+            const BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            var interfacePropertyAccessors = interfaceType.GetProperties(bindingFlags).SelectMany(p => p.GetAccessors(true)).Select(m => m.GetMethodNameWithTypes());
+            var instancePropertyAccessors = instanceType.GetProperties(bindingFlags).SelectMany(p => p.GetAccessors(true)).Select(m => m.GetMethodNameWithTypes());
+
+            var propertyIntersection = interfacePropertyAccessors.Intersect(instancePropertyAccessors);
+
+            return propertyIntersection.Count() == interfacePropertyAccessors.Count();
+        }
+
+        private static bool FulfillsInterfaceMethodDefinitions(IReflect interfaceType, IReflect instanceType)
+        {
+            const BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            var interfaceMethods = interfaceType.GetMethods(bindingFlags).Where(m => !m.IsSpecialName).Select(m => m.GetMethodNameWithTypes());
+            var instanceMethods = instanceType.GetMethods(bindingFlags).Where(m => !m.IsSpecialName).Select(m => m.GetMethodNameWithTypes());
+            var methodIntersect = interfaceMethods.Intersect(instanceMethods);
+
+            return interfaceMethods.Count() == methodIntersect.Count();
         }
     }
 }
