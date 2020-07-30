@@ -7,7 +7,7 @@ using System.Security;
 // associated with an assembly.
 
 [assembly: AssemblyTitle("DynamicProxy")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("Hi friend! I hope you're doing well.")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Microsoft")]
 [assembly: AssemblyProduct("DynamicProxy")]
